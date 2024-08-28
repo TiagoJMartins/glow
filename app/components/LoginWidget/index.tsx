@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 
 import { LoginProviderButton } from '../LoginProviderButton';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   trigger: React.ReactNode;
@@ -36,8 +37,7 @@ export function LoginWidget({ trigger, isSignup }: Props) {
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <LoginProviderButton provider="twitter" className="mt-2 md:mt-0" />
-          <LoginProviderButton provider="google" />
+          <LoginProviderButton provider="credentials" />
         </DialogFooter>
       </DialogContent>
     </Dialog>

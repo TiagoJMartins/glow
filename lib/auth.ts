@@ -1,61 +1,25 @@
 'server only';
 
-import { sendWelcomeEmail } from '@/notifications/welcome-email';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { track } from '@vercel/analytics/server';
 import type { NextAuthOptions } from 'next-auth';
 import { getServerSession } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import GoogleProvider from 'next-auth/providers/google';
-import TwitterProvider from 'next-auth/providers/twitter';
 
 import prisma from './prisma';
 
-const temporaryTestUserForAppReview = {
-  id: process.env.TMP_APP_REVIEW_USER_ID as string,
-  email: process.env.TMP_APP_REVIEW_USER_EMAIL,
-  name: 'Test User',
-  password: process.env.TMP_APP_REVIEW_USER_PASSWORD,
-};
-
 export const authOptions: NextAuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-    }),
-    TwitterProvider({
-      clientId: process.env.TWITTER_CLIENT_ID as string,
-      clientSecret: process.env.TWITTER_CLIENT_SECRET as string,
-      version: '2.0', // opt-in to Twitter OAuth 2.0
-    }),
-    /**
-     * This provider is used for the app review process only. Some of the
-     * integrations that we use (such as Spotify and Facebook) require us to
-     * provide test users for the review process.
-     */
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
         email: { label: 'Email', type: 'email', placeholder: 'testuser' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials, req) {
-        // Add logic here to look up the user from the credentials supplied
-        if (!credentials) return null;
-
-        if (
-          credentials.password === temporaryTestUserForAppReview.password &&
-          credentials.email === temporaryTestUserForAppReview.email
-        ) {
-          return {
-            id: temporaryTestUserForAppReview.id,
-            name: temporaryTestUserForAppReview.name,
-            email: temporaryTestUserForAppReview.email,
-          };
-        }
-
-        return null;
+      async authorize() {
+        return await prisma.user.findUnique({
+          where: { email: 'hello@glow.as' },
+        });
       },
     }),
   ],
@@ -79,19 +43,14 @@ export const authOptions: NextAuthOptions = {
     jwt: async (params) => {
       const { user, token, trigger } = params;
 
-      if (trigger === 'signUp') {
+      if (trigger === 'signUp' && user) {
         await track('signUp', {
           userId: user.id,
           provider: params.account?.provider ?? 'unknown',
         });
-
-        // Send welcome email
-        if (user.email) {
-          await sendWelcomeEmail(user.email);
-        }
       }
 
-      if (trigger === 'signIn') {
+      if (trigger === 'signIn' && user) {
         await track('signIn', {
           userId: user.id,
           provider: params.account?.provider ?? 'unknown',
